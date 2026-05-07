@@ -4,6 +4,10 @@
   "description": "Drift migration CLI wrapper for Node.js and Bun",
   "license": "MIT",
   "type": "module",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "bin": {
     "drift": "dist/bin/drift.js"
   },
