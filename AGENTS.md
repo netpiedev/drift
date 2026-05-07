@@ -1,4 +1,4 @@
-AGENTS.txt - Drift LLM Agent Guide
+AGENTS.md - Drift LLM Agent Guide
 
 Purpose
 - This file tells an LLM/code agent how to work in this repository safely and productively.
