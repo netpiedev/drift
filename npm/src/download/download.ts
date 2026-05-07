@@ -20,6 +20,11 @@ type ReleaseAsset = {
   browser_download_url: string;
 };
 
+type ReleaseLookup = {
+  tag: string;
+  assets: ReleaseAsset[];
+};
+
 function candidateAssetNames(platform: SupportedPlatform): string[] {
   const candidates: Record<SupportedPlatform, string[]> = {
     "linux-amd64": [
@@ -85,6 +90,41 @@ async function fetchReleaseAssets(version: string): Promise<ReleaseAsset[]> {
   return Array.isArray(json.assets) ? json.assets : [];
 }
 
+async function fetchReleaseByTag(tag: string): Promise<ReleaseLookup | null> {
+  const clean = tag.startsWith("v") ? tag : `v${tag}`;
+  const apiURL = `https://api.github.com/repos/netpiedev/drift/releases/tags/${clean}`;
+  const response = await fetch(apiURL, {
+    headers: {
+      Accept: "application/vnd.github+json"
+    }
+  });
+  if (!response.ok) {
+    return null;
+  }
+  const json = (await response.json()) as { tag_name?: string; assets?: ReleaseAsset[] };
+  return {
+    tag: typeof json.tag_name === "string" ? json.tag_name : clean,
+    assets: Array.isArray(json.assets) ? json.assets : []
+  };
+}
+
+async function fetchLatestRelease(): Promise<ReleaseLookup | null> {
+  const apiURL = "https://api.github.com/repos/netpiedev/drift/releases/latest";
+  const response = await fetch(apiURL, {
+    headers: {
+      Accept: "application/vnd.github+json"
+    }
+  });
+  if (!response.ok) {
+    return null;
+  }
+  const json = (await response.json()) as { tag_name?: string; assets?: ReleaseAsset[] };
+  return {
+    tag: typeof json.tag_name === "string" ? json.tag_name : "<latest>",
+    assets: Array.isArray(json.assets) ? json.assets : []
+  };
+}
+
 function selectAssetFromRelease(assets: ReleaseAsset[], platform: SupportedPlatform): ReleaseAsset | null {
   if (assets.length === 0) {
     return null;
@@ -125,6 +165,7 @@ export async function ensureBinary(): Promise<string> {
   const version = packageVersion();
   const platform = detectPlatform();
   const names = candidateAssetNames(platform);
+  const requestedTag = process.env.DRIFT_RELEASE_TAG?.trim();
 
   for (const name of names) {
     const url = `${BINARY_BASE_URL}/v${version}/${name}`;
@@ -148,9 +189,34 @@ export async function ensureBinary(): Promise<string> {
     }
   }
 
+  if (requestedTag) {
+    const tagged = await fetchReleaseByTag(requestedTag);
+    if (tagged) {
+      const taggedMatch = selectAssetFromRelease(tagged.assets, platform);
+      if (taggedMatch) {
+        if (await downloadTo(target, taggedMatch.browser_download_url)) {
+          return target;
+        }
+      }
+    }
+  }
+
+  const latest = await fetchLatestRelease();
+  if (latest) {
+    const latestMatch = selectAssetFromRelease(latest.assets, platform);
+    if (latestMatch) {
+      if (await downloadTo(target, latestMatch.browser_download_url)) {
+        return target;
+      }
+    }
+  }
+
   const known = assets.length > 0 ? assets.map((a) => a.name).join(", ") : "<none>";
+  const latestKnown =
+    latest && latest.assets.length > 0 ? latest.assets.map((a) => a.name).join(", ") : "<none>";
   throw new Error(
     `Failed to download Drift binary for ${platform} version v${version}. ` +
-      `Tried names: ${names.join(", ")}. Release assets: ${known}`
+      `Tried names: ${names.join(", ")}. Requested release assets: ${known}. ` +
+      `Latest release assets (${latest?.tag ?? "<unknown>"}): ${latestKnown}`
   );
 }
