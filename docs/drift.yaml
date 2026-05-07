@@ -5,6 +5,7 @@ database:
 
 migrations:
   dir: ./examples/migrations
+  sequence_type: timestamp
 
 safety:
   require_confirm_prod: true

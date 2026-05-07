@@ -13,6 +13,7 @@ import (
 func newInitCommand(configPath *string) *cobra.Command {
 	_ = configPath
 	var migrationsDir string
+	var sequenceType string
 	var nonInteractive bool
 
 	command := &cobra.Command{
@@ -31,6 +32,17 @@ func newInitCommand(configPath *string) *cobra.Command {
 				}
 				selectedMigrationsDir = prompted
 			}
+			selectedSequenceType, err := normalizeSequenceType(sequenceType)
+			if err != nil {
+				return err
+			}
+			if !nonInteractive && isInteractiveStdin() && sequenceType == "" {
+				promptedSequenceType, promptErr := promptSequenceType(selectedSequenceType)
+				if promptErr != nil {
+					return promptErr
+				}
+				selectedSequenceType = promptedSequenceType
+			}
 
 			dirs := []string{selectedMigrationsDir, "seeds/dev", "seeds/staging", "snapshots"}
 			for _, dir := range dirs {
@@ -47,6 +59,7 @@ database:
 
 migrations:
   dir: %s
+  sequence_type: %s
 
 safety:
   require_confirm_prod: true
@@ -69,7 +82,7 @@ observability:
   enable_otel: false
   otel_service_name: drift
   prometheus_listen: ""
-`, selectedMigrationsDir)
+`, selectedMigrationsDir, selectedSequenceType)
 				if err := os.WriteFile("drift.yaml", []byte(content), 0o644); err != nil {
 					return fmt.Errorf("write drift.yaml: %w", err)
 				}
@@ -89,6 +102,7 @@ observability:
 	}
 
 	command.Flags().StringVar(&migrationsDir, "migrations-dir", "", "migrations directory path to use in drift.yaml")
+	command.Flags().StringVar(&sequenceType, "sequence-type", "", "migration sequence type: timestamp|date|serial|none")
 	command.Flags().BoolVar(&nonInteractive, "yes", false, "run init without interactive prompts")
 	return command
 }
@@ -105,6 +119,20 @@ func promptMigrationsDir(defaultPath string) (string, error) {
 		return defaultPath, nil
 	}
 	return value, nil
+}
+
+func promptSequenceType(defaultType string) (string, error) {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Fprintf(os.Stdout, "Select migration sequence type [timestamp|date|serial|none] [%s]: ", defaultType)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return "", fmt.Errorf("read sequence type input: %w", err)
+	}
+	value := strings.TrimSpace(line)
+	if value == "" {
+		return defaultType, nil
+	}
+	return normalizeSequenceType(value)
 }
 
 func isInteractiveStdin() bool {

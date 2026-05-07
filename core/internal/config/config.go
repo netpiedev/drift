@@ -23,7 +23,8 @@ type DatabaseConfig struct {
 }
 
 type MigrationConfig struct {
-	Dir string `mapstructure:"dir"`
+	Dir          string `mapstructure:"dir"`
+	SequenceType string `mapstructure:"sequence_type"`
 }
 
 type SafetyConfig struct {
@@ -60,7 +61,8 @@ func Default() Config {
 			URL: "",
 		},
 		Migrations: MigrationConfig{
-			Dir: "./migrations",
+			Dir:          "./migrations",
+			SequenceType: "timestamp",
 		},
 		Safety: SafetyConfig{
 			RequireConfirmProd: true,
@@ -104,6 +106,7 @@ func Load(configPath string) (Config, error) {
 	v.SetDefault("environment", cfg.Environment)
 	v.SetDefault("database.url", cfg.Database.URL)
 	v.SetDefault("migrations.dir", cfg.Migrations.Dir)
+	v.SetDefault("migrations.sequence_type", cfg.Migrations.SequenceType)
 	v.SetDefault("safety.require_confirm_prod", cfg.Safety.RequireConfirmProd)
 	v.SetDefault("safety.readonly_prod", cfg.Safety.ReadonlyProd)
 	v.SetDefault("safety.prod_fingerprint", cfg.Safety.ProdFingerprint)

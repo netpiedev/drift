@@ -11,6 +11,7 @@ import (
 )
 
 var migrationPattern = regexp.MustCompile(`^(\d+)_([a-zA-Z0-9_\-]+)\.(up|down)\.(sql|ts|js|go|py)$`)
+var migrationPatternNoSequence = regexp.MustCompile(`^([a-zA-Z0-9_\-]+)\.(up|down)\.(sql|ts|js|go|py)$`)
 
 func ParseDir(dir string) ([]Migration, error) {
 	entries, err := os.ReadDir(dir)
@@ -25,8 +26,25 @@ func ParseDir(dir string) ([]Migration, error) {
 		}
 		name := entry.Name()
 		matches := migrationPattern.FindStringSubmatch(name)
-		if len(matches) == 0 {
-			continue
+		version := ""
+		migrationName := ""
+		direction := ""
+		ext := ""
+
+		if len(matches) > 0 {
+			version = matches[1]
+			migrationName = matches[2]
+			direction = matches[3]
+			ext = matches[4]
+		} else {
+			matchesNoSeq := migrationPatternNoSequence.FindStringSubmatch(name)
+			if len(matchesNoSeq) == 0 {
+				continue
+			}
+			migrationName = matchesNoSeq[1]
+			direction = matchesNoSeq[2]
+			ext = matchesNoSeq[3]
+			version = "name_" + migrationName
 		}
 		full := filepath.Join(dir, name)
 		content, err := os.ReadFile(full)
@@ -35,10 +53,10 @@ func ParseDir(dir string) ([]Migration, error) {
 		}
 
 		migrations = append(migrations, Migration{
-			Version:   matches[1],
-			Name:      matches[2],
-			Direction: Direction(matches[3]),
-			Ext:       matches[4],
+			Version:   version,
+			Name:      migrationName,
+			Direction: Direction(direction),
+			Ext:       ext,
 			Path:      full,
 			Checksum:  util.SHA256Hex(content),
 			Content:   content,

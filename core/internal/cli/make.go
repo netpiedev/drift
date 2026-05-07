@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/netpiedev/drift/core/internal/config"
 	"github.com/spf13/cobra"
@@ -22,16 +21,29 @@ func newMakeCommand(configPath *string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			name := sanitizeName(args[0])
-			version := time.Now().UTC().Format("200601021504")
-			base := fmt.Sprintf("%s_%s", version, name)
 
 			if err := os.MkdirAll(cfg.Migrations.Dir, 0o755); err != nil {
 				return fmt.Errorf("mkdir migrations dir: %w", err)
 			}
 
+			name := sanitizeName(args[0])
+			sequenceType, err := normalizeSequenceType(cfg.Migrations.SequenceType)
+			if err != nil {
+				return err
+			}
+			base, err := buildMigrationBaseName(sequenceType, cfg.Migrations.Dir, name)
+			if err != nil {
+				return err
+			}
+
 			upPath := filepath.Join(cfg.Migrations.Dir, base+".up.sql")
 			downPath := filepath.Join(cfg.Migrations.Dir, base+".down.sql")
+			if _, err := os.Stat(upPath); err == nil {
+				return fmt.Errorf("migration file already exists: %s", upPath)
+			}
+			if _, err := os.Stat(downPath); err == nil {
+				return fmt.Errorf("migration file already exists: %s", downPath)
+			}
 			if err := os.WriteFile(upPath, []byte("-- Write forward migration SQL here\n"), 0o644); err != nil {
 				return err
 			}
