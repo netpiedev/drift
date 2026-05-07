@@ -1,0 +1,22 @@
+# Node/Bun
+node_modules/
+npm/node_modules/
+npm/dist/
+
+# Go
+core/bin/
+core/coverage.out
+core/drift
+
+# Env
+.env
+.env.*
+
+# Local caches
+.cache/
+.tmp/
+.bun-install/
+
+# OS
+.DS_Store
+Thumbs.db

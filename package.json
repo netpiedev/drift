@@ -1,0 +1,13 @@
+{
+  "name": "drift-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "npm"
+  ],
+  "scripts": {
+    "build": "cd npm && bun run build",
+    "test": "cd npm && bun run test"
+  },
+  "license": "GPL-3.0"
+}

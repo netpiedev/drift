@@ -1,0 +1,33 @@
+{
+  "name": "@netpiedev/drift",
+  "version": "0.1.0",
+  "description": "Drift migration CLI wrapper for Node.js and Bun",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "drift": "dist/bin/drift.js"
+  },
+  "main": "dist/bin/drift.js",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build",
+    "test": "bun test src",
+    "postinstall": "node dist/bin/postinstall.js || true"
+  },
+  "engines": {
+    "node": ">=18.18.0",
+    "bun": ">=1.1.0"
+  },
+  "dependencies": {
+    "execa": "^9.6.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^22.15.17",
+    "typescript": "^5.8.3"
+  }
+}

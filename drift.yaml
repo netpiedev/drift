@@ -1,0 +1,29 @@
+environment: dev
+
+database:
+  url: ${DATABASE_URL}
+
+migrations:
+  dir: ./examples/migrations
+
+safety:
+  require_confirm_prod: true
+  readonly_prod: false
+  prod_fingerprint: ""
+
+seeds:
+  dir: ./examples/seeds
+
+snapshots:
+  dir: ./examples/snapshots
+
+runners:
+  node: node
+  bun: bun
+  python: python3
+  go: go
+
+observability:
+  enable_otel: false
+  otel_service_name: drift
+  prometheus_listen: ""
