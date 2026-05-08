@@ -1,13 +1,31 @@
 import fs from "node:fs/promises";
-import { createWriteStream } from "node:fs";
+import { createWriteStream, readFileSync } from "node:fs";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
+import { fileURLToPath } from "node:url";
 
 import { BINARY_BASE_URL, BINARY_NAME, CACHE_ROOT } from "../core/constants.js";
 import { detectPlatform, type SupportedPlatform } from "../platform/platform.js";
 
 function packageVersion(): string {
-  return process.env.npm_package_version || "0.1.0";
+  const envVersion = process.env.npm_package_version?.trim() || process.env.DRIFT_PACKAGE_VERSION?.trim();
+  if (envVersion) {
+    return envVersion;
+  }
+
+  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+  const packageJSONPath = path.resolve(moduleDir, "../../package.json");
+  try {
+    const raw = readFileSync(packageJSONPath, "utf8");
+    const json = JSON.parse(raw) as { version?: string };
+    if (typeof json.version === "string" && json.version.trim() !== "") {
+      return json.version.trim();
+    }
+  } catch {
+    // fall back
+  }
+
+  return "0.1.0";
 }
 
 export function cachedBinaryPath(): string {
@@ -151,8 +169,49 @@ function selectAssetFromRelease(assets: ReleaseAsset[], platform: SupportedPlatf
   return null;
 }
 
+async function cleanupOldCachedBinaries(currentVersion: string, platform: SupportedPlatform): Promise<void> {
+  let entries: { name: string; isDirectory: () => boolean }[] = [];
+  try {
+    entries = await fs.readdir(CACHE_ROOT, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  const currentDir = `v${currentVersion}`;
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+    if (!entry.name.startsWith("v") || entry.name === currentDir) {
+      continue;
+    }
+
+    const versionDir = path.join(CACHE_ROOT, entry.name);
+    const platformDir = path.join(versionDir, platform);
+    try {
+      await fs.rm(platformDir, { recursive: true, force: true });
+    } catch {
+      // best-effort cleanup
+    }
+
+    try {
+      const remaining = await fs.readdir(versionDir);
+      if (remaining.length === 0) {
+        await fs.rm(versionDir, { recursive: true, force: true });
+      }
+    } catch {
+      // best-effort cleanup
+    }
+  }
+}
+
 export async function ensureBinary(): Promise<string> {
-  const target = cachedBinaryPath();
+  const version = packageVersion();
+  const platform = detectPlatform();
+  const target = path.join(CACHE_ROOT, `v${version}`, platform, BINARY_NAME);
+
+  await cleanupOldCachedBinaries(version, platform);
+
   try {
     await fs.access(target);
     return target;
@@ -162,8 +221,6 @@ export async function ensureBinary(): Promise<string> {
 
   await fs.mkdir(path.dirname(target), { recursive: true });
 
-  const version = packageVersion();
-  const platform = detectPlatform();
   const names = candidateAssetNames(platform);
   const requestedTag = process.env.DRIFT_RELEASE_TAG?.trim();
 

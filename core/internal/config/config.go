@@ -95,8 +95,9 @@ func Default() Config {
 func Load(configPath string) (Config, error) {
 	cfg := Default()
 	v := viper.New()
-	if configPath != "" {
-		v.SetConfigFile(configPath)
+	explicitConfigPath := strings.TrimSpace(configPath)
+	if explicitConfigPath != "" {
+		v.SetConfigFile(explicitConfigPath)
 	} else {
 		if defaultConfig := findDefaultConfigFile(); defaultConfig != "" {
 			v.SetConfigFile(defaultConfig)
@@ -145,7 +146,24 @@ func Load(configPath string) (Config, error) {
 		}
 	}
 
+	// When a config file is explicitly provided (e.g. via --config),
+	// keep relative directories anchored to that file's directory.
+	if explicitConfigPath != "" {
+		baseDir := filepath.Dir(explicitConfigPath)
+		cfg.Migrations.Dir = resolveConfigRelativePath(baseDir, cfg.Migrations.Dir)
+		cfg.Seeds.Dir = resolveConfigRelativePath(baseDir, cfg.Seeds.Dir)
+		cfg.Snapshots.Dir = resolveConfigRelativePath(baseDir, cfg.Snapshots.Dir)
+	}
+
 	return cfg, nil
+}
+
+func resolveConfigRelativePath(baseDir, value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" || filepath.IsAbs(trimmed) {
+		return value
+	}
+	return filepath.Clean(filepath.Join(baseDir, trimmed))
 }
 
 func findDefaultConfigFile() string {

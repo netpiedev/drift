@@ -8,7 +8,6 @@ import { ensureBinary } from "../download/download.js";
 async function localBinaryCandidates(): Promise<string[]> {
   const cwd = process.cwd();
   const candidates = [
-    process.env.DRIFT_BINARY_PATH || "",
     path.join(cwd, "core", "bin", BINARY_NAME),
     path.join(cwd, "bin", BINARY_NAME),
     path.join(cwd, BINARY_NAME)
@@ -26,12 +25,21 @@ async function exists(filePath: string): Promise<boolean> {
 }
 
 export async function resolveBinaryPath(): Promise<string> {
-  for (const candidate of await localBinaryCandidates()) {
-    if (await exists(candidate)) {
-      return candidate;
-    }
+  const overrideBinary = process.env.DRIFT_BINARY_PATH?.trim();
+  if (overrideBinary && (await exists(overrideBinary))) {
+    return overrideBinary;
   }
-  return ensureBinary();
+
+  try {
+    return await ensureBinary();
+  } catch (downloadError) {
+    for (const candidate of await localBinaryCandidates()) {
+      if (await exists(candidate)) {
+        return candidate;
+      }
+    }
+    throw downloadError;
+  }
 }
 
 export async function runDrift(args: string[]): Promise<number> {

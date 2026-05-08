@@ -223,8 +223,8 @@ observability:
 	command.Flags().StringVar(&snapshotsDir, "snapshots-dir", "./snapshots", "snapshots directory path to use in drift.yaml")
 	command.Flags().BoolVar(&requireConfirmProd, "require-confirm-prod", true, "require confirmation when running migrations in production")
 	command.Flags().BoolVar(&readonlyProd, "readonly-prod", false, "enable readonly production mode in drift.yaml")
-	command.Flags().BoolVar(&scaffoldSeeds, "scaffold-seeds", true, "create seed folders during init")
-	command.Flags().BoolVar(&scaffoldSnapshots, "scaffold-snapshots", true, "create snapshots folder during init")
+	command.Flags().BoolVar(&scaffoldSeeds, "scaffold-seeds", false, "create seed folders during init")
+	command.Flags().BoolVar(&scaffoldSnapshots, "scaffold-snapshots", false, "create snapshots folder during init")
 	command.Flags().BoolVar(&force, "force", false, "overwrite existing drift.yaml")
 	command.Flags().BoolVar(&nonInteractive, "yes", false, "run init without interactive prompts")
 	return command
