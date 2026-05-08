@@ -1,7 +1,10 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -92,11 +95,16 @@ func Default() Config {
 func Load(configPath string) (Config, error) {
 	cfg := Default()
 	v := viper.New()
-	v.SetConfigName("drift")
-	v.SetConfigType("yaml")
-	v.AddConfigPath(".")
 	if configPath != "" {
 		v.SetConfigFile(configPath)
+	} else {
+		if defaultConfig := findDefaultConfigFile(); defaultConfig != "" {
+			v.SetConfigFile(defaultConfig)
+		} else {
+			v.SetConfigName("drift")
+			v.SetConfigType("yaml")
+			v.AddConfigPath(".")
+		}
 	}
 
 	v.SetEnvPrefix("DRIFT")
@@ -121,8 +129,8 @@ func Load(configPath string) (Config, error) {
 	v.SetDefault("observability.prometheus_listen", cfg.Observability.PrometheusListen)
 
 	if err := v.ReadInConfig(); err != nil {
-		_, ok := err.(viper.ConfigFileNotFoundError)
-		if !ok && configPath != "" {
+		var notFound viper.ConfigFileNotFoundError
+		if !errors.As(err, &notFound) || configPath != "" {
 			return Config{}, fmt.Errorf("read config: %w", err)
 		}
 	}
@@ -138,4 +146,24 @@ func Load(configPath string) (Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func findDefaultConfigFile() string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+
+	for _, name := range []string{"drift.yaml", "drift.yml"} {
+		candidate := filepath.Join(cwd, name)
+		info, statErr := os.Stat(candidate)
+		if statErr != nil {
+			continue
+		}
+		if !info.IsDir() {
+			return candidate
+		}
+	}
+
+	return ""
 }

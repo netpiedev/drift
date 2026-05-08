@@ -1,6 +1,6 @@
 {
   "name": "@netpiedev/drift",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Drift migration CLI wrapper for Node.js and Bun",
   "license": "MIT",
   "repository": {
